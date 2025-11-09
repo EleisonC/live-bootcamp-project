@@ -11,7 +11,8 @@ use axum::{
 use domain::AuthAPIError;
 use routes::{login, logout, signup, verify_2fa, verify_token};
 use serde::{Deserialize, Serialize};
-use tower_http::{cors::CorsLayer, services::ServeDir};
+use tower_http::{cors::CorsLayer, services::{ServeDir, ServeFile}};
+use tokio::net::TcpListener;
 
 pub mod app_state;
 pub mod domain;
@@ -20,12 +21,14 @@ pub mod services;
 pub mod utils;
 
 pub struct Application {
-    server: Serve<Router, Router>,
+    server: Serve<TcpListener, Router, Router>,
     pub address: String,
 }
 
 impl Application {
     pub async fn build(app_state: AppState, address: &str) -> Result<Self, Box<dyn Error>> {
+        let asset_dir = ServeDir::new("assets")
+            .not_found_service(ServeFile::new("assets/index.html"));
         let allowed_origins = [
             "http://localhost:8000".parse()?,
             "http://[YOUR_DROPLET_IP]:8000".parse()?,
@@ -37,7 +40,7 @@ impl Application {
             .allow_origin(allowed_origins);
 
         let router = Router::new()
-            .nest_service("/", ServeDir::new("assets"))
+            .fallback_service(asset_dir)
             .route("/signup", post(signup))
             .route("/login", post(login))
             .route("/verify-2fa", post(verify_2fa))
