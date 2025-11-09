@@ -1,11 +1,11 @@
-use validator::validate_email;
+use validator::ValidateEmail;
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct Email(String);
 
 impl Email {
     pub fn parse(s: String) -> Result<Email, String> {
-        if validate_email(&s) {
+        if s.validate_email() {
             Ok(Self(s))
         } else {
             Err(format!("{} is not a valid email.", s))
@@ -25,6 +25,8 @@ mod tests {
 
     use fake::faker::internet::en::SafeEmail;
     use fake::Fake;
+    use quickcheck::Gen;
+    use rand::SeedableRng;
 
     #[test]
     fn empty_string_is_rejected() {
@@ -46,8 +48,10 @@ mod tests {
     struct ValidEmailFixture(pub String);
 
     impl quickcheck::Arbitrary for ValidEmailFixture {
-        fn arbitrary<G: quickcheck::Gen>(g: &mut G) -> Self {
-            let email = SafeEmail().fake_with_rng(g);
+        fn arbitrary(g: &mut Gen) -> Self {
+            let seed: u64 = g.size() as u64;
+            let mut rng = rand::rngs::SmallRng::seed_from_u64(seed);
+            let email = SafeEmail().fake_with_rng(&mut rng);
             Self(email)
         }
     }
