@@ -4,6 +4,7 @@ use argon2::{
     password_hash::SaltString, Algorithm, Argon2, Params, PasswordHash, PasswordHasher,
     PasswordVerifier, Version,
 };
+use argon2::password_hash::rand_core::OsRng;
 
 use sqlx::PgPool;
 
@@ -102,7 +103,7 @@ async fn verify_password_hash(
 
 async fn compute_password_hash(password: String) -> Result<String, Box<dyn Error + Send + Sync>> {
     let result = tokio::task::spawn_blocking(move || {
-        let salt: SaltString = SaltString::generate(&mut rand::thread_rng());
+        let salt: SaltString = SaltString::generate(&mut OsRng);
         let password_hash = Argon2::new(
             Algorithm::Argon2id,
             Version::V0x13,

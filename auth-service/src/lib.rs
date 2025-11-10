@@ -9,9 +9,11 @@ use axum::{
     Json, Router,
 };
 use domain::AuthAPIError;
+use redis::{Client, RedisResult};
 use routes::{login, logout, signup, verify_2fa, verify_token};
 use serde::{Deserialize, Serialize};
 use tower_http::{cors::CorsLayer, services::{ServeDir, ServeFile}};
+use sqlx::{postgres::PgPoolOptions, PgPool};
 use tokio::net::TcpListener;
 
 pub mod app_state;
