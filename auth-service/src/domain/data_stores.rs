@@ -101,7 +101,7 @@ impl LoginAttemptId {
 
 impl Default for LoginAttemptId {
     fn default() -> Self {
-        Self(Secret::new(uuid::Uuid::new_v4().to_string()))
+        Self(uuid::Uuid::new_v4().to_string())
     }
 }
 
@@ -133,9 +133,7 @@ impl TwoFACode {
 
 impl Default for TwoFACode {
     fn default() -> Self {
-        Self(Secret::new(
-            rand::thread_rng().gen_range(100_000..=999_999).to_string(),
-        ))
+        Self(Secret::new(rand::rng().random_range(100_000..=999_999).to_string()))
     }
 }
 

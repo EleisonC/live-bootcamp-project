@@ -36,6 +36,8 @@ mod tests {
 
     use fake::faker::internet::en::Password as FakePassword;
     use fake::Fake;
+    use quickcheck::Gen;
+    use rand::SeedableRng;
     use secrecy::Secret;
 
     #[test]
@@ -53,8 +55,10 @@ mod tests {
     struct ValidPasswordFixture(pub Secret<String>);
 
     impl quickcheck::Arbitrary for ValidPasswordFixture {
-        fn arbitrary<G: quickcheck::Gen>(g: &mut G) -> Self {
-            let password = FakePassword(8..30).fake_with_rng(g);
+        fn arbitrary(g: &mut Gen) -> Self {
+            let seed: u64 = g.size() as u64;
+            let mut rng = rand::rngs::SmallRng::seed_from_u64(seed);
+            let password = FakePassword(8..30).fake_with_rng(&mut rng);
             Self(Secret::new(password))
         }
     }

@@ -1,7 +1,10 @@
+use std::error::Error;
+
 use argon2::{
     password_hash::SaltString, Algorithm, Argon2, Params, PasswordHash, PasswordHasher,
     PasswordVerifier, Version,
 };
+use argon2::password_hash::rand_core::OsRng;
 use color_eyre::eyre::{Context, Result};
 
 use secrecy::{ExposeSecret, Secret};
@@ -118,14 +121,14 @@ async fn compute_password_hash(password: Secret<String>) -> Result<Secret<String
 
     let result = tokio::task::spawn_blocking(move || {
         current_span.in_scope(|| {
-            let salt: SaltString = SaltString::generate(&mut rand::thread_rng());
-            let password_hash = Argon2::new(
-                Algorithm::Argon2id,
-                Version::V0x13,
-                Params::new(15000, 2, 1, None)?,
-            )
-            .hash_password(password.expose_secret().as_bytes(), &salt)?
-            .to_string();
+        let salt: SaltString = SaltString::generate(&mut OsRng);
+        let password_hash = Argon2::new(
+            Algorithm::Argon2id,
+            Version::V0x13,
+            Params::new(15000, 2, 1, None)?,
+        )
+        .hash_password(password.as_bytes(), &salt)?
+        .to_string();
 
             Ok(Secret::new(password_hash))
         })
