@@ -18,6 +18,10 @@ impl Password {
             Err(eyre!("Failed to parse string to a Password type"))
         }
     }
+
+    pub fn from_password_hash(hash: String) -> Self {
+        Self(SecretString::new(hash.into_boxed_str()))
+    }
 }
 
 fn validate_password(s: &SecretString) -> bool {
