@@ -1,7 +1,7 @@
 use color_eyre::eyre::Result;
 
 use reqwest::{Client, Url};
-use secrecy::{ExposeSecret, Secret};
+use secrecy::{ExposeSecret, SecretString};
 
 use crate::domain::{Email, EmailClient};
 
@@ -9,14 +9,14 @@ pub struct PostmarkEmailClient {
     http_client: Client,
     base_url: String,
     sender: Email,
-    authorization_token: Secret<String>,
+    authorization_token: SecretString,
 }
 
 impl PostmarkEmailClient {
     pub fn new(
         base_url: String,
         sender: Email,
-        authorization_token: Secret<String>,
+        authorization_token: SecretString,
         http_client: Client,
     ) -> Self {
         Self {
@@ -32,7 +32,7 @@ impl PostmarkEmailClient {
 impl EmailClient for PostmarkEmailClient {
     #[tracing::instrument(name = "Sending email", skip_all)]
     async fn send_email(&self, recipient: &Email, subject: &str, content: &str) -> Result<()> {
-        let base = Url::parse(&self.base_url)?;
+        let base = Url::parse(&self.base_url.as_str())?;
         let url = base.join("/email")?;
 
         let request_body = SendEmailRequest {
@@ -93,21 +93,21 @@ mod tests {
         Paragraph(1..10).fake()
     }
     fn email() -> Email {
-        Email::parse(Secret::new(SafeEmail().fake())).unwrap()
+        Email::parse(SecretString::new(SafeEmail().fake::<String>().into_boxed_str())).unwrap()
     }
     fn email_client(base_url: String) -> PostmarkEmailClient {
         let http_client = Client::builder()
             .timeout(test::email_client::TIMEOUT)
             .build()
             .unwrap();
-        PostmarkEmailClient::new(base_url, email(), Secret::new(Faker.fake()), http_client)
+        PostmarkEmailClient::new(base_url, email(), SecretString::new(Faker.fake::<String>().into_boxed_str()), http_client)
     }
 
     struct SendEmailBodyMatcher;
 
     impl wiremock::Match for SendEmailBodyMatcher {
         fn matches(&self, request: &Request) -> bool {
-            let result: Result<serde_json::Value, _> = serde_json::from_slice(&request.body);
+            let result: Result<serde_json::Value, _> = serde_json::from_slice(&request.body.as_slice());
             if let Ok(body) = result {
                 body.get("From").is_some()
                     && body.get("To").is_some()
@@ -137,7 +137,7 @@ mod tests {
             .await;
 
         let outcome = email_client
-            .send_email(&email(), &subject(), &content())
+            .send_email(&email(), &subject().as_str(), &content().as_str())
             .await;
 
         assert!(outcome.is_ok());
@@ -154,7 +154,7 @@ mod tests {
             .await;
 
         let outcome = email_client
-            .send_email(&email(), &subject(), &content())
+            .send_email(&email(), &subject().as_str(), &content().as_str())
             .await;
 
         assert!(outcome.is_err());
@@ -172,7 +172,7 @@ mod tests {
             .await;
 
         let outcome = email_client
-            .send_email(&email(), &subject(), &content())
+            .send_email(&email(), &subject().as_str(), &content().as_str())
             .await;
 
         assert!(outcome.is_err());

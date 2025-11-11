@@ -1,8 +1,8 @@
 use color_eyre::eyre::{eyre, Result};
-use secrecy::{ExposeSecret, Secret};
+use secrecy::{ExposeSecret, SecretString};
 
 #[derive(Debug, Clone)]
-pub struct Password(Secret<String>);
+pub struct Password(SecretString);
 
 impl PartialEq for Password {
     fn eq(&self, other: &Self) -> bool {
@@ -11,7 +11,7 @@ impl PartialEq for Password {
 }
 
 impl Password {
-    pub fn parse(s: Secret<String>) -> Result<Password> {
+    pub fn parse(s: SecretString) -> Result<Password> {
         if validate_password(&s) {
             Ok(Self(s))
         } else {
@@ -20,12 +20,12 @@ impl Password {
     }
 }
 
-fn validate_password(s: &Secret<String>) -> bool {
+fn validate_password(s: &SecretString) -> bool {
     s.expose_secret().len() >= 8
 }
 
-impl AsRef<Secret<String>> for Password {
-    fn as_ref(&self) -> &Secret<String> {
+impl AsRef<SecretString> for Password {
+    fn as_ref(&self) -> &SecretString {
         &self.0
     }
 }
@@ -38,28 +38,28 @@ mod tests {
     use fake::Fake;
     use quickcheck::Gen;
     use rand::SeedableRng;
-    use secrecy::Secret;
+    use secrecy::SecretString;
 
     #[test]
     fn empty_string_is_rejected() {
-        let password = Secret::new("".to_string());
+        let password = SecretString::new("".to_owned().into_boxed_str());
         assert!(Password::parse(password).is_err());
     }
     #[test]
     fn string_less_than_8_characters_is_rejected() {
-        let password = Secret::new("1234567".to_string());
+        let password = SecretString::new("1234567".to_owned().into_boxed_str());
         assert!(Password::parse(password).is_err());
     }
 
     #[derive(Debug, Clone)]
-    struct ValidPasswordFixture(pub Secret<String>);
+    struct ValidPasswordFixture(pub SecretString);
 
     impl quickcheck::Arbitrary for ValidPasswordFixture {
         fn arbitrary(g: &mut Gen) -> Self {
             let seed: u64 = g.size() as u64;
             let mut rng = rand::rngs::SmallRng::seed_from_u64(seed);
-            let password = FakePassword(8..30).fake_with_rng(&mut rng);
-            Self(Secret::new(password))
+            let password: String = FakePassword(8..30).fake_with_rng(&mut rng);
+            Self(SecretString::new(password.into_boxed_str()))
         }
     }
     #[quickcheck_macros::quickcheck]

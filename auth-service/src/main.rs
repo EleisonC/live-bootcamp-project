@@ -1,5 +1,5 @@
 use reqwest::Client;
-use secrecy::Secret;
+use secrecy::SecretString;
 use sqlx::PgPool;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -77,7 +77,7 @@ fn configure_postmark_email_client() -> PostmarkEmailClient {
 
     PostmarkEmailClient::new(
         prod::email_client::BASE_URL.to_owned(),
-        Email::parse(Secret::new(prod::email_client::SENDER.to_owned())).unwrap(),
+        Email::parse(SecretString::new(prod::email_client::SENDER.to_owned().into_boxed_str())).unwrap(),
         POSTMARK_AUTH_TOKEN.to_owned(),
         http_client,
     )

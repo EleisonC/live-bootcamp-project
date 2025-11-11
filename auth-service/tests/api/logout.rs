@@ -1,6 +1,6 @@
 use auth_service::{utils::constants::JWT_COOKIE_NAME, ErrorResponse};
 use reqwest::Url;
-use secrecy::Secret;
+use secrecy::SecretString;
 use test_helpers::api_test;
 
 use crate::helpers::{get_random_email, TestApp};
@@ -35,7 +35,7 @@ async fn should_return_200_if_valid_jwt_cookie() {
 
     assert!(!auth_cookie.value().is_empty());
 
-    let token = Secret::new(auth_cookie.value().to_owned());
+    let token = SecretString::new(auth_cookie.value().to_owned().into());
 
     let response = app.post_logout().await;
 

@@ -1,6 +1,6 @@
 use color_eyre::eyre::{eyre, Report, Result};
 use rand::Rng;
-use secrecy::{ExposeSecret, Secret};
+use secrecy::{ExposeSecret, SecretString};
 use thiserror::Error;
 
 use super::{Email, Password, User};
@@ -39,8 +39,8 @@ impl PartialEq for UserStoreError {
 
 #[async_trait::async_trait]
 pub trait BannedTokenStore {
-    async fn add_token(&mut self, token: Secret<String>) -> Result<(), BannedTokenStoreError>;
-    async fn contains_token(&self, token: &Secret<String>) -> Result<bool, BannedTokenStoreError>;
+    async fn add_token(&mut self, token: SecretString) -> Result<(), BannedTokenStoreError>;
+    async fn contains_token(&self, token: &SecretString) -> Result<bool, BannedTokenStoreError>;
 }
 
 #[derive(Debug, Error)]
@@ -83,7 +83,7 @@ impl PartialEq for TwoFACodeStoreError {
 }
 
 #[derive(Debug, Clone)]
-pub struct LoginAttemptId(Secret<String>);
+pub struct LoginAttemptId(SecretString);
 
 impl PartialEq for LoginAttemptId {
     fn eq(&self, other: &Self) -> bool {
@@ -92,27 +92,29 @@ impl PartialEq for LoginAttemptId {
 }
 
 impl LoginAttemptId {
-    pub fn parse(id: Secret<String>) -> Result<Self> {
+    pub fn parse(id: SecretString) -> Result<Self> {
         let id = uuid::Uuid::parse_str(id.expose_secret())
             .map_err(|_| eyre!("Invalid login attempt id"))?;
-        Ok(Self(Secret::new(id.to_string())))
+        Ok(Self(SecretString::new(id.to_string().into_boxed_str())))
     }
 }
 
 impl Default for LoginAttemptId {
     fn default() -> Self {
-        Self(uuid::Uuid::new_v4().to_string())
+        Self(
+            SecretString::new(uuid::Uuid::new_v4().to_string().into_boxed_str())
+        )
     }
 }
 
-impl AsRef<Secret<String>> for LoginAttemptId {
-    fn as_ref(&self) -> &Secret<String> {
+impl AsRef<SecretString> for LoginAttemptId {
+    fn as_ref(&self) -> &SecretString {
         &self.0
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct TwoFACode(Secret<String>);
+pub struct TwoFACode(SecretString);
 
 impl PartialEq for TwoFACode {
     fn eq(&self, other: &Self) -> bool {
@@ -121,7 +123,7 @@ impl PartialEq for TwoFACode {
 }
 
 impl TwoFACode {
-    pub fn parse(code: Secret<String>) -> Result<Self> {
+    pub fn parse(code: SecretString) -> Result<Self> {
         let code_as_u32 = code.expose_secret().parse::<u32>()?;
         if (100_000..=999_999).contains(&code_as_u32) {
             Ok(Self(code))
@@ -133,12 +135,13 @@ impl TwoFACode {
 
 impl Default for TwoFACode {
     fn default() -> Self {
-        Self(Secret::new(rand::rng().random_range(100_000..=999_999).to_string()))
+        Self(SecretString::new(rand::rng().
+            random_range(100_000..=999_999).to_string().into_boxed_str()))
     }
 }
 
-impl AsRef<Secret<String>> for TwoFACode {
-    fn as_ref(&self) -> &Secret<String> {
+impl AsRef<SecretString> for TwoFACode {
+    fn as_ref(&self) -> &SecretString {
         &self.0
     }
 }

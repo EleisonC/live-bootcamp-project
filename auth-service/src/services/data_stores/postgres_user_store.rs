@@ -1,5 +1,3 @@
-use std::error::Error;
-
 use argon2::{
     password_hash::SaltString, Algorithm, Argon2, Params, PasswordHash, PasswordHasher,
     PasswordVerifier, Version,
@@ -7,7 +5,7 @@ use argon2::{
 use argon2::password_hash::rand_core::OsRng;
 use color_eyre::eyre::{Context, Result};
 
-use secrecy::{ExposeSecret, Secret};
+use secrecy::{ExposeSecret, SecretString};
 use sqlx::PgPool;
 
 use crate::domain::{
@@ -64,9 +62,9 @@ impl UserStore for PostgresUserStore {
         .map_err(|e| UserStoreError::UnexpectedError(e.into()))?
         .map(|row| {
             Ok(User {
-                email: Email::parse(Secret::new(row.email))
+                email: Email::parse(SecretString::new(row.email.into_boxed_str()))
                     .map_err(UserStoreError::UnexpectedError)?,
-                password: Password::parse(Secret::new(row.password_hash))
+                password: Password::parse(SecretString::new(row.password_hash.into_boxed_str()))
                     .map_err(UserStoreError::UnexpectedError)?,
                 requires_2fa: row.requires_2fa,
             })
@@ -93,8 +91,8 @@ impl UserStore for PostgresUserStore {
 
 #[tracing::instrument(name = "Verify password hash", skip_all)]
 async fn verify_password_hash(
-    expected_password_hash: Secret<String>,
-    password_candidate: Secret<String>,
+    expected_password_hash: SecretString,
+    password_candidate: SecretString,
 ) -> Result<()> {
     let current_span: tracing::Span = tracing::Span::current();
     let result = tokio::task::spawn_blocking(move || {
@@ -116,7 +114,7 @@ async fn verify_password_hash(
 }
 
 #[tracing::instrument(name = "Computing password hash", skip_all)]
-async fn compute_password_hash(password: Secret<String>) -> Result<Secret<String>> {
+async fn compute_password_hash(password: SecretString) -> Result<SecretString> {
     let current_span: tracing::Span = tracing::Span::current();
 
     let result = tokio::task::spawn_blocking(move || {
@@ -127,10 +125,10 @@ async fn compute_password_hash(password: Secret<String>) -> Result<Secret<String
             Version::V0x13,
             Params::new(15000, 2, 1, None)?,
         )
-        .hash_password(password.as_bytes(), &salt)?
+        .hash_password(password.expose_secret().as_bytes(), &salt)?
         .to_string();
 
-            Ok(Secret::new(password_hash))
+            Ok(SecretString::new(password_hash.into_boxed_str()))
         })
     })
     .await;

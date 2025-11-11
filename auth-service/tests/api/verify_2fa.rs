@@ -4,7 +4,7 @@ use auth_service::{
     utils::constants::JWT_COOKIE_NAME,
     ErrorResponse,
 };
-use secrecy::{ExposeSecret, Secret};
+use secrecy::{ExposeSecret, SecretString};
 use test_helpers::api_test;
 use wiremock::{
     matchers::{method, path},
@@ -57,7 +57,7 @@ async fn should_return_200_if_correct_code() {
         .two_fa_code_store
         .read()
         .await
-        .get_code(&Email::parse(Secret::new(random_email.clone())).unwrap())
+        .get_code(&Email::parse(SecretString::new(random_email.clone().into())).unwrap())
         .await
         .unwrap();
 
@@ -90,13 +90,13 @@ async fn should_return_400_if_invalid_input() {
     let test_cases = vec![
         (
             "invalid_email",
-            login_attempt_id.expose_secret().as_str(),
-            two_fa_code.expose_secret().as_str(),
+            login_attempt_id.expose_secret(),
+            two_fa_code.expose_secret(),
         ),
         (
             random_email.as_str(),
             "invalid_login_attempt_id",
-            two_fa_code.expose_secret().as_str(),
+            two_fa_code.expose_secret(),
         ),
         (
             random_email.as_str(),
@@ -179,7 +179,7 @@ async fn should_return_401_if_incorrect_credentials() {
         .two_fa_code_store
         .read()
         .await
-        .get_code(&Email::parse(Secret::new(random_email.clone())).unwrap())
+        .get_code(&Email::parse(SecretString::new(random_email.clone().into())).unwrap())
         .await
         .unwrap();
 
@@ -195,17 +195,17 @@ async fn should_return_401_if_incorrect_credentials() {
         (
             incorrect_email.as_str(),
             login_attempt_id.as_str(),
-            two_fa_code.expose_secret().as_str(),
+            two_fa_code.expose_secret(),
         ),
         (
             random_email.as_str(),
             incorrect_login_attempt_id.expose_secret(),
-            two_fa_code.expose_secret().as_str(),
+            two_fa_code.expose_secret(),
         ),
         (
             random_email.as_str(),
             login_attempt_id.as_str(),
-            incorrect_two_fa_code.expose_secret().as_str(),
+            incorrect_two_fa_code.expose_secret(),
         ),
     ];
 
@@ -282,7 +282,7 @@ async fn should_return_401_if_old_code() {
         .two_fa_code_store
         .read()
         .await
-        .get_code(&Email::parse(Secret::new(random_email.clone())).unwrap())
+        .get_code(&Email::parse(SecretString::new(random_email.clone().into())).unwrap())
         .await
         .unwrap();
 
@@ -351,7 +351,7 @@ async fn should_return_401_if_same_code_twice() {
         .two_fa_code_store
         .read()
         .await
-        .get_code(&Email::parse(Secret::new(random_email.clone())).unwrap())
+        .get_code(&Email::parse(SecretString::new(random_email.clone().into())).unwrap())
         .await
         .unwrap();
 

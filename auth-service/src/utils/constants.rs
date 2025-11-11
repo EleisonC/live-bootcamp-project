@@ -1,27 +1,27 @@
 use dotenvy::dotenv;
 use lazy_static::lazy_static;
-use secrecy::Secret;
+use secrecy::SecretString;
 use std::env as std_env;
 
 lazy_static! {
-    pub static ref JWT_SECRET: Secret<String> = set_token();
-    pub static ref DATABASE_URL: Secret<String> = set_db_url();
+    pub static ref JWT_SECRET: SecretString = set_token();
+    pub static ref DATABASE_URL: SecretString = set_db_url();
     pub static ref REDIS_HOST_NAME: String = set_redis_host();
-    pub static ref POSTMARK_AUTH_TOKEN: Secret<String> = set_postmark_auth_token();
+    pub static ref POSTMARK_AUTH_TOKEN: SecretString = set_postmark_auth_token();
 }
 
-fn set_token() -> Secret<String> {
+fn set_token() -> SecretString {
     dotenv().ok();
     let secret = std_env::var(env::JWT_SECRET_ENV_VAR).expect("JWT_SECRET must be set.");
     if secret.is_empty() {
         panic!("JWT_SECRET must not be empty.");
     }
-    Secret::new(secret)
+    SecretString::new(secret.into_boxed_str())
 }
 
-fn set_db_url() -> Secret<String> {
+fn set_db_url() -> SecretString {
     dotenv().ok();
-    Secret::new(std_env::var(env::DATABASE_URL_ENV_VAR).expect("DATABASE_URL must be set."))
+    SecretString::new(std_env::var(env::DATABASE_URL_ENV_VAR).expect("DATABASE_URL must be set.").into_boxed_str())
 }
 
 fn set_redis_host() -> String {
@@ -29,10 +29,10 @@ fn set_redis_host() -> String {
     std_env::var(env::REDIS_HOST_NAME_ENV_VAR).unwrap_or(DEFAULT_REDIS_HOSTNAME.to_owned())
 }
 
-fn set_postmark_auth_token() -> Secret<String> {
+fn set_postmark_auth_token() -> SecretString {
     dotenv().ok();
-    Secret::new(
-        std_env::var(env::POSTMARK_AUTH_TOKEN_ENV_VAR).expect("POSTMARK_AUTH_TOKEN must be set."),
+    SecretString::new(
+        std_env::var(env::POSTMARK_AUTH_TOKEN_ENV_VAR).expect("POSTMARK_AUTH_TOKEN must be set.").into_boxed_str(),
     )
 }
 

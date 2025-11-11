@@ -1,6 +1,6 @@
 use core::panic;
 use reqwest::{cookie::Jar, Client};
-use secrecy::{ExposeSecret, Secret};
+use secrecy::{ExposeSecret, SecretString};
 use sqlx::{
     postgres::{PgConnectOptions, PgPoolOptions},
     Connection, Executor, PgConnection, PgPool,
@@ -177,11 +177,11 @@ async fn configure_postgresql(db_name: &str) -> PgPool {
 
     configure_database(&postgresql_conn_url, db_name).await;
 
-    let postgresql_conn_url_with_db = Secret::new(format!(
+    let postgresql_conn_url_with_db = SecretString::new(format!(
         "{}/{}",
         postgresql_conn_url.expose_secret(),
         db_name
-    ));
+    ).into_boxed_str());
 
     get_postgres_pool(&postgresql_conn_url_with_db)
         .await
@@ -222,7 +222,7 @@ async fn delete_database(db_name: &str) {
         .expect("Failed to drop the database.");
 }
 
-async fn configure_database(db_conn_string: &Secret<String>, db_name: &str) {
+async fn configure_database(db_conn_string: &SecretString, db_name: &str) {
     let connection = PgPoolOptions::new()
         .connect(db_conn_string.expose_secret())
         .await
@@ -258,9 +258,9 @@ fn configure_redis() -> redis::Connection {
 }
 
 fn configure_postmark_email_client(base_url: String) -> PostmarkEmailClient {
-    let postmark_auth_token = Secret::new("auth_token".to_owned());
+    let postmark_auth_token = SecretString::new("auth_token".to_owned().into_boxed_str());
 
-    let sender = Email::parse(Secret::new(test::email_client::SENDER.to_owned())).unwrap();
+    let sender = Email::parse(SecretString::new(test::email_client::SENDER.to_owned().into_boxed_str())).unwrap();
 
     let http_client = Client::builder()
         .timeout(test::email_client::TIMEOUT)
