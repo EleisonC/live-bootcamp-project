@@ -61,10 +61,15 @@ impl UserStore for PostgresUserStore {
         .await
         .map_err(|e| UserStoreError::UnexpectedError(e.into()))?
         .map(|row| {
+
+            let parsed_hash = PasswordHash::new(&row.password_hash)
+                .wrap_err("Invalid password hash stored in database")
+                .map_err(UserStoreError::UnexpectedError)?;
             Ok(User {
                 email: Email::parse(SecretString::new(row.email.into_boxed_str()))
                     .map_err(UserStoreError::UnexpectedError)?,
-                password: Password::from_password_hash(row.password_hash),
+                password: Password::from_password_hash(parsed_hash)
+                    .map_err(UserStoreError::UnexpectedError)?,
                 requires_2fa: row.requires_2fa,
             })
         })

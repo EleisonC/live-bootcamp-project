@@ -1,3 +1,4 @@
+use argon2::PasswordHash;
 use color_eyre::eyre::{eyre, Result};
 use secrecy::{ExposeSecret, SecretString};
 
@@ -19,8 +20,15 @@ impl Password {
         }
     }
 
-    pub fn from_password_hash(hash: String) -> Self {
-        Self(SecretString::new(hash.into_boxed_str()))
+    /// Construct a `Password` instance from a cryptographically valid Argon2 `PasswordHash`.
+    /// This is used when retrieving users from storage, not for validation.
+    pub fn from_password_hash(hash: PasswordHash) -> Result<Password> {
+        // `PasswordHash` implements Display — its string form is the PHC string.
+        Ok(
+            Self(
+                SecretString::new(hash.to_string().into_boxed_str()
+                ))
+        )
     }
 }
 
@@ -42,7 +50,11 @@ mod tests {
     use fake::Fake;
     use quickcheck::Gen;
     use rand::SeedableRng;
-    use secrecy::SecretString;
+    use secrecy::{SecretString, ExposeSecret};
+    use argon2::{
+        password_hash::{SaltString, rand_core::OsRng}, Algorithm, Argon2,
+        Params, PasswordHash, PasswordHasher, Version,
+    };
 
     #[test]
     fn empty_string_is_rejected() {
@@ -53,6 +65,33 @@ mod tests {
     fn string_less_than_8_characters_is_rejected() {
         let password = SecretString::new("1234567".to_owned().into_boxed_str());
         assert!(Password::parse(password).is_err());
+    }
+    #[test]
+    fn can_build_password_from_valid_hash() {
+        let raw_password = SecretString::new("StrongPass123".to_owned().into_boxed_str());
+
+        // Match production parameters exactly
+        let salt: SaltString = SaltString::generate(&mut OsRng);
+        let argon2 = Argon2::new(
+            Algorithm::Argon2id,
+            Version::V0x13,
+            Params::new(15000, 2, 1, None).unwrap(),
+        );
+
+        let password_hash = argon2
+            .hash_password(raw_password.expose_secret().as_bytes(), &salt).unwrap()
+            .to_string();
+
+        let parsed_hash = PasswordHash::new(password_hash.as_ref()).unwrap();
+
+        // Act
+        let password =
+            Password::from_password_hash(parsed_hash).expect("Should create Password from hash");
+
+        // Assert
+        let stored_value = password.as_ref().expose_secret();
+        assert!(stored_value.starts_with("$argon2id$v=19$m=15000"));
+        assert!(stored_value.contains("p=1"));
     }
 
     #[derive(Debug, Clone)]
