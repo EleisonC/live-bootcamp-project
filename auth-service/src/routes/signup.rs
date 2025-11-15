@@ -5,6 +5,7 @@ use crate::{
     app_state::AppState,
     domain::{AuthAPIError, Email, Password, User},
 };
+use crate::domain::HashPassword;
 
 pub async fn signup(
     State(state): State<AppState>,
@@ -15,7 +16,9 @@ pub async fn signup(
     let password =
         Password::parse(request.password.clone()).map_err(|_| AuthAPIError::InvalidCredentials)?;
 
-    let user = User::new(email, password, request.requires_2fa);
+    let password_hash  = HashPassword::new(password).await.map_err(|_| AuthAPIError::UnexpectedError)?;
+
+    let user = User::new(email, password_hash, request.requires_2fa);
 
     let mut user_store = state.user_store.write().await;
 

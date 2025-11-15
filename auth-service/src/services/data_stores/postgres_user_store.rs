@@ -1,17 +1,9 @@
 use std::error::Error;
 
-use argon2::{
-    password_hash::SaltString, Algorithm, Argon2, Params, PasswordHash, PasswordHasher,
-    PasswordVerifier, Version,
-};
-use argon2::password_hash::rand_core::OsRng;
-
+use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use sqlx::PgPool;
 
-use crate::domain::{
-    data_stores::{UserStore, UserStoreError},
-    Email, Password, User,
-};
+use crate::domain::{data_stores::{UserStore, UserStoreError}, Email, HashPassword, Password, User};
 
 pub struct PostgresUserStore {
     pool: PgPool,
@@ -26,17 +18,13 @@ impl PostgresUserStore {
 #[async_trait::async_trait]
 impl UserStore for PostgresUserStore {
     async fn add_user(&mut self, user: User) -> Result<(), UserStoreError> {
-        let password_hash = compute_password_hash(user.password.as_ref().to_owned())
-            .await
-            .map_err(|_| UserStoreError::UnexpectedError)?;
-
         sqlx::query!(
             r#"
             INSERT INTO users (email, password_hash, requires_2fa)
             VALUES ($1, $2, $3)
             "#,
             user.email.as_ref(),
-            &password_hash,
+            &user.password.as_ref(),
             user.requires_2fa
         )
         .execute(&self.pool)
@@ -61,7 +49,7 @@ impl UserStore for PostgresUserStore {
         .map(|row| {
             Ok(User {
                 email: Email::parse(row.email).map_err(|_| UserStoreError::UnexpectedError)?,
-                password: Password::from_password_hash(PasswordHash::new(&row.password_hash).map_err(|_| UserStoreError::UnexpectedError)?),
+                password: HashPassword::parse(row.password_hash).map_err(|_| UserStoreError::UnexpectedError)?,
                 requires_2fa: row.requires_2fa,
             })
         })
@@ -94,24 +82,6 @@ async fn verify_password_hash(
         Argon2::default()
             .verify_password(password_candidate.as_bytes(), &expected_password_hash)
             .map_err(|e| e.into())
-    })
-    .await;
-
-    result?
-}
-
-async fn compute_password_hash(password: String) -> Result<String, Box<dyn Error + Send + Sync>> {
-    let result = tokio::task::spawn_blocking(move || {
-        let salt: SaltString = SaltString::generate(&mut OsRng);
-        let password_hash = Argon2::new(
-            Algorithm::Argon2id,
-            Version::V0x13,
-            Params::new(15000, 2, 1, None)?,
-        )
-        .hash_password(password.as_bytes(), &salt)?
-        .to_string();
-
-        Ok(password_hash)
     })
     .await;
 

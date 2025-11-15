@@ -1,5 +1,7 @@
 use std::collections::HashMap;
-
+use argon2::{
+    Argon2, PasswordHash, PasswordVerifier,
+};
 use crate::domain::{Email, Password, User, UserStore, UserStoreError};
 
 #[derive(Default)]
@@ -29,29 +31,37 @@ impl UserStore for HashmapUserStore {
         email: &Email,
         password: &Password,
     ) -> Result<(), UserStoreError> {
-        match self.users.get(email) {
-            Some(user) => {
-                if user.password.eq(password) {
-                    Ok(())
-                } else {
-                    Err(UserStoreError::InvalidCredentials)
-                }
-            }
-            None => Err(UserStoreError::UserNotFound),
-        }
+        let user = self.users.get(email).ok_or(UserStoreError::UserNotFound)?;
+
+        let expected_password_hash = user.password.as_ref().to_owned();
+        let password_candidate = password.as_ref().to_owned();
+
+        tokio::task::spawn_blocking(move || {
+            let parsed_hash = PasswordHash::new(&expected_password_hash)
+                .map_err(|_| UserStoreError::UnexpectedError)?;
+
+            Argon2::default()
+                .verify_password(password_candidate.as_bytes(), &parsed_hash)
+                .map_err(|_| UserStoreError::InvalidCredentials)
+        })
+            .await
+            .map_err(|_| UserStoreError::UnexpectedError)?
     }
 }
 
+
 #[cfg(test)]
 mod tests {
+    use crate::domain::HashPassword;
     use super::*;
 
     #[tokio::test]
     async fn test_add_user() {
         let mut user_store = HashmapUserStore::default();
+        let password = HashPassword::new(Password::parse("password".to_owned()).unwrap()).await.unwrap();
         let user = User {
             email: Email::parse("test@example.com".to_owned()).unwrap(),
-            password: Password::parse("password".to_owned()).unwrap(),
+            password,
             requires_2fa: false,
         };
 
@@ -69,9 +79,10 @@ mod tests {
         let mut user_store = HashmapUserStore::default();
         let email = Email::parse("test@example.com".to_owned()).unwrap();
 
+        let password = HashPassword::new(Password::parse("password".to_owned()).unwrap()).await.unwrap();
         let user = User {
             email: email.clone(),
-            password: Password::parse("password".to_owned()).unwrap(),
+            password,
             requires_2fa: false,
         };
 
@@ -93,10 +104,11 @@ mod tests {
         let mut user_store = HashmapUserStore::default();
         let email = Email::parse("test@example.com".to_owned()).unwrap();
         let password = Password::parse("password".to_owned()).unwrap();
+        let hash_password = HashPassword::new(password.clone()).await.unwrap();
 
         let user = User {
             email: email.clone(),
-            password: password.clone(),
+            password: hash_password,
             requires_2fa: false,
         };
 
@@ -114,7 +126,7 @@ mod tests {
         let result = user_store
             .validate_user(
                 &Email::parse("nonexistent@example.com".to_string()).unwrap(),
-                &password,
+                &Password::parse("password".to_owned()).unwrap(),
             )
             .await;
 
