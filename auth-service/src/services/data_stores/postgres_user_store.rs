@@ -1,9 +1,6 @@
-use std::error::Error;
-
-use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use sqlx::PgPool;
 
-use crate::domain::{data_stores::{UserStore, UserStoreError}, Email, HashPassword, Password, User};
+use crate::domain::{data_stores::{UserStore, UserStoreError}, Email, Password, User};
 
 pub struct PostgresUserStore {
     pool: PgPool,
@@ -49,7 +46,7 @@ impl UserStore for PostgresUserStore {
         .map(|row| {
             Ok(User {
                 email: Email::parse(row.email).map_err(|_| UserStoreError::UnexpectedError)?,
-                password: HashPassword::parse(row.password_hash).map_err(|_| UserStoreError::UnexpectedError)?,
+                password: Password::parse_password_hash(row.password_hash).map_err(|_| UserStoreError::UnexpectedError)?,
                 requires_2fa: row.requires_2fa,
             })
         })
@@ -59,31 +56,11 @@ impl UserStore for PostgresUserStore {
     async fn validate_user(
         &self,
         email: &Email,
-        password: &Password,
+        password: &String,
     ) -> Result<(), UserStoreError> {
-        let user = self.get_user(email).await?;
-
-        verify_password_hash(
-            user.password.as_ref().to_owned(),
-            password.as_ref().to_owned(),
-        )
-        .await
-        .map_err(|_| UserStoreError::InvalidCredentials)
+        let user: User = self.get_user(email).await?;
+        user.password.verify_password_hash(password.to_owned())
+            .await.map_err(|_| UserStoreError::InvalidCredentials)
     }
 }
 
-async fn verify_password_hash(
-    expected_password_hash: String,
-    password_candidate: String,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let result = tokio::task::spawn_blocking(move || {
-        let expected_password_hash: PasswordHash<'_> = PasswordHash::new(&expected_password_hash)?;
-
-        Argon2::default()
-            .verify_password(password_candidate.as_bytes(), &expected_password_hash)
-            .map_err(|e| e.into())
-    })
-    .await;
-
-    result?
-}

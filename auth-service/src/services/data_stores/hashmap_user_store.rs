@@ -1,8 +1,5 @@
 use std::collections::HashMap;
-use argon2::{
-    Argon2, PasswordHash, PasswordVerifier,
-};
-use crate::domain::{Email, Password, User, UserStore, UserStoreError};
+use crate::domain::{Email, User, UserStore, UserStoreError};
 
 #[derive(Default)]
 pub struct HashmapUserStore {
@@ -29,36 +26,26 @@ impl UserStore for HashmapUserStore {
     async fn validate_user(
         &self,
         email: &Email,
-        password: &Password,
+        password: &String,
     ) -> Result<(), UserStoreError> {
-        let user = self.users.get(email).ok_or(UserStoreError::UserNotFound)?;
-
-        let expected_password_hash = user.password.as_ref().to_owned();
-        let password_candidate = password.as_ref().to_owned();
-
-        tokio::task::spawn_blocking(move || {
-            let parsed_hash = PasswordHash::new(&expected_password_hash)
-                .map_err(|_| UserStoreError::UnexpectedError)?;
-
-            Argon2::default()
-                .verify_password(password_candidate.as_bytes(), &parsed_hash)
-                .map_err(|_| UserStoreError::InvalidCredentials)
-        })
-            .await
-            .map_err(|_| UserStoreError::UnexpectedError)?
+        let user: &User = self.users.get(email).ok_or(UserStoreError::UserNotFound)?;
+        
+        user.password.verify_password_hash(password.to_owned())
+            .await.map_err(|_| UserStoreError::InvalidCredentials)
     }
 }
 
 
 #[cfg(test)]
 mod tests {
-    use crate::domain::HashPassword;
     use super::*;
+    use crate::domain::Password;
+    
 
     #[tokio::test]
     async fn test_add_user() {
         let mut user_store = HashmapUserStore::default();
-        let password = HashPassword::new(Password::parse("password".to_owned()).unwrap()).await.unwrap();
+        let password = Password::parse("password".to_owned()).await.unwrap();
         let user = User {
             email: Email::parse("test@example.com".to_owned()).unwrap(),
             password,
@@ -79,7 +66,7 @@ mod tests {
         let mut user_store = HashmapUserStore::default();
         let email = Email::parse("test@example.com".to_owned()).unwrap();
 
-        let password = HashPassword::new(Password::parse("password".to_owned()).unwrap()).await.unwrap();
+        let password = Password::parse("password".to_owned()).await.unwrap();
         let user = User {
             email: email.clone(),
             password,
@@ -103,33 +90,30 @@ mod tests {
     async fn test_validate_user() {
         let mut user_store = HashmapUserStore::default();
         let email = Email::parse("test@example.com".to_owned()).unwrap();
-        let password = Password::parse("password".to_owned()).unwrap();
-        let hash_password = HashPassword::new(password.clone()).await.unwrap();
-
+        let password = Password::parse("password".to_owned()).await.unwrap();
+    
         let user = User {
             email: email.clone(),
-            password: hash_password,
+            password: password.clone(),
             requires_2fa: false,
         };
-
+    
         // Test validating a user that exists with correct password
         user_store.users.insert(email.clone(), user.clone());
-        let result = user_store.validate_user(&email, &password).await;
+        let result = user_store.validate_user(&email, &"password".to_owned()).await;
         assert_eq!(result, Ok(()));
-
+    
         // Test validating a user that exists with incorrect password
-        let wrong_password = Password::parse("wrongpassword".to_owned()).unwrap();
-        let result = user_store.validate_user(&email, &wrong_password).await;
+        let result = user_store.validate_user(&email, &"wrongpassword".to_owned()).await;
         assert_eq!(result, Err(UserStoreError::InvalidCredentials));
-
+    
         // Test validating a user that doesn't exist
         let result = user_store
             .validate_user(
                 &Email::parse("nonexistent@example.com".to_string()).unwrap(),
-                &Password::parse("password".to_owned()).unwrap(),
-            )
-            .await;
-
+                &"password".to_owned()
+            ).await;
+    
         assert_eq!(result, Err(UserStoreError::UserNotFound));
     }
 }

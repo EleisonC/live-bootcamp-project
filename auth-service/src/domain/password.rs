@@ -1,13 +1,49 @@
+use std::error::Error;
+use argon2::password_hash::rand_core::OsRng;
+use argon2::{
+    password_hash::SaltString, Algorithm, Argon2, Params, PasswordHash, PasswordHasher,
+    Version, PasswordVerifier
+};
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Password(String);
 
 impl Password {
-    pub fn parse(s: String) -> Result<Password, String> {
-        if validate_password(&s) {
-            Ok(Self(s))
+    pub async fn parse(s: String) -> Result<Password, String> {
+        if validate_password(s.as_str()) {
+            if let Ok(password_hash) = compute_password_hash(s.to_owned()).await  {
+                Ok(Self(password_hash))
+            } else  {
+                Err("Password hash failed.".to_owned())
+            }
         } else {
             Err("Failed to parse string to a Password type".to_owned())
         }
+    }
+
+    pub fn parse_password_hash(hash: String) -> Result<Password, String> {
+        // No validation - hashes are already validated by the hashing algorithm
+        if let Ok(hashed_string) = PasswordHash::new(hash.as_ref()) {
+            Ok(Self(hashed_string.to_string()))
+        } else {
+            Err("Failed to parse string to a HashPassword type".to_owned())
+        }
+
+    }
+
+    pub async fn verify_password_hash(&self,
+        password_candidate: String,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let password_hash = self.0.clone();
+        let result = tokio::task::spawn_blocking(move || {
+            let expected_password_hash: PasswordHash<'_> = PasswordHash::new(&password_hash)?;
+
+            Argon2::default()
+                .verify_password(password_candidate.as_bytes(), &expected_password_hash)
+                .map_err(|e| e.into())
+        }).await;
+        
+        result?
     }
 }
 
@@ -21,8 +57,30 @@ impl AsRef<str> for Password {
     }
 }
 
+pub async fn compute_password_hash(password: String) -> Result<String, Box<dyn Error + Send + Sync>> {
+    let result = tokio::task::spawn_blocking(move || {
+        let salt: SaltString = SaltString::generate(&mut OsRng);
+        let password_hash = Argon2::new(
+            Algorithm::Argon2id,
+            Version::V0x13,
+            Params::new(15000, 2, 1, None)?,
+        )
+            .hash_password(password.as_bytes(), &salt)?
+            .to_string();
+
+        Ok(password_hash)
+    })
+        .await;
+
+    result?
+}
+
 #[cfg(test)]
 mod tests {
+    use argon2::{
+        password_hash::{rand_core::OsRng, SaltString},
+        Algorithm, Argon2, Params, PasswordHasher, Version,
+    };
     use super::Password;
 
     use fake::faker::internet::en::Password as FakePassword;
@@ -30,16 +88,68 @@ mod tests {
     use quickcheck::Gen;
     use rand::SeedableRng;
 
-    #[test]
-    fn empty_string_is_rejected() {
+    #[tokio::test]
+    async fn empty_string_is_rejected() {
         let password = "".to_owned();
-        assert!(Password::parse(password).is_err());
+        assert!(Password::parse(password).await.is_err());
     }
-    #[test]
-    fn string_less_than_8_characters_is_rejected() {
+    #[tokio::test]
+    async fn string_less_than_8_characters_is_rejected() {
         let password = "1234567".to_owned();
-        assert!(Password::parse(password).is_err());
+        assert!(Password::parse(password).await.is_err());
     }
+
+    #[test]
+    fn can_parse_valid_argon2_hash() {
+        // Arrange - Create a valid Argon2 hash
+        let raw_password = "TestPassword123";
+        let salt = SaltString::generate(&mut OsRng);
+        let argon2 = Argon2::new(
+            Algorithm::Argon2id,
+            Version::V0x13,
+            Params::new(15000, 2, 1, None).unwrap(),
+        );
+
+        let hash_string = argon2
+            .hash_password(raw_password.as_bytes(), &salt)
+            .unwrap()
+            .to_string();
+
+        // Act
+        let hash_password = Password::parse_password_hash(hash_string.clone()).unwrap();
+
+        // Assert
+        assert_eq!(hash_password.as_ref(), hash_string.as_str());
+        assert!(hash_password.as_ref().starts_with("$argon2id$v=19$"));
+    }
+
+    #[tokio::test]
+    async fn can_verify_password_hash() {
+        // Arrange - Create a valid Argon2 hash
+        let raw_password = "TestPassword123";
+        let salt = SaltString::generate(&mut OsRng);
+        let argon2 = Argon2::new(
+            Algorithm::Argon2id,
+            Version::V0x13,
+            Params::new(15000, 2, 1, None).unwrap(),
+        );
+
+        let hash_string = argon2
+            .hash_password(raw_password.as_bytes(), &salt)
+            .unwrap()
+            .to_string();
+
+        // Act
+        let hash_password = Password::parse_password_hash(hash_string.clone()).unwrap();
+
+        // Assert
+        assert_eq!(hash_password.as_ref(), hash_string.as_str());
+        assert!(hash_password.as_ref().starts_with("$argon2id$v=19$"));
+        
+        let result  = hash_password.verify_password_hash(raw_password.to_owned()).await.unwrap();
+        assert_eq!(result, ())
+    }
+    
 
     #[derive(Debug, Clone)]
     struct ValidPasswordFixture(pub String);
@@ -54,6 +164,7 @@ mod tests {
     }
     #[quickcheck_macros::quickcheck]
     fn valid_passwords_are_parsed_successfully(valid_password: ValidPasswordFixture) -> bool {
-        Password::parse(valid_password.0).is_ok()
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async { Password::parse(valid_password.0).await.is_ok() })
     }
 }
