@@ -56,10 +56,10 @@ impl UserStore for PostgresUserStore {
     async fn validate_user(
         &self,
         email: &Email,
-        password: &String,
+        raw_password: &str,
     ) -> Result<(), UserStoreError> {
         let user: User = self.get_user(email).await?;
-        user.password.verify_password_hash(password.to_owned())
+        user.password.verify_password_hash(raw_password.to_owned())
             .await.map_err(|_| UserStoreError::InvalidCredentials)
     }
 }

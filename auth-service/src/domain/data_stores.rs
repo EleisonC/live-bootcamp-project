@@ -6,7 +6,7 @@ use super::{Email, User};
 pub trait UserStore {
     async fn add_user(&mut self, user: User) -> Result<(), UserStoreError>;
     async fn get_user(&self, email: &Email) -> Result<User, UserStoreError>;
-    async fn validate_user(&self, email: &Email, password: &String)
+    async fn validate_user(&self, email: &Email, raw_password: &str)
         -> Result<(), UserStoreError>;
 }
 
