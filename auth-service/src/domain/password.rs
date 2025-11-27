@@ -73,9 +73,9 @@ pub async fn compute_password_hash(
 
         Ok(password_hash)
     })
-    .await;
+    .await?;
 
-    result?
+    result
 }
 
 #[cfg(test)]
@@ -167,9 +167,10 @@ mod tests {
             Self(password)
         }
     }
+
+    #[tokio::test]
     #[quickcheck_macros::quickcheck]
-    fn valid_passwords_are_parsed_successfully(valid_password: ValidPasswordFixture) -> bool {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async { Password::parse(valid_password.0).await.is_ok() })
+    async fn valid_passwords_are_parsed_successfully(valid_password: ValidPasswordFixture) -> bool {
+        Password::parse(valid_password.0).await.is_ok()
     }
 }
