@@ -6,10 +6,10 @@ use argon2::{
 use std::error::Error;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Password(String);
+pub struct HashedPassword(String);
 
-impl Password {
-    pub async fn parse(s: String) -> Result<Password, String> {
+impl HashedPassword {
+    pub async fn parse(s: String) -> Result<HashedPassword, String> {
         if validate_password(s.as_str()) {
             if let Ok(password_hash) = compute_password_hash(s.to_owned()).await {
                 Ok(Self(password_hash))
@@ -17,16 +17,16 @@ impl Password {
                 Err("Password hash failed.".to_owned())
             }
         } else {
-            Err("Failed to parse string to a Password type".to_owned())
+            Err("Failed to parse string to a HashedPassword type".to_owned())
         }
     }
 
-    pub fn parse_password_hash(hash: String) -> Result<Password, String> {
+    pub fn parse_password_hash(hash: String) -> Result<HashedPassword, String> {
         // No validation - hashes are already validated by the hashing algorithm
         if let Ok(hashed_string) = PasswordHash::new(hash.as_ref()) {
             Ok(Self(hashed_string.to_string()))
         } else {
-            Err("Failed to parse string to a HashPassword type".to_owned())
+            Err("Failed to parse string to a HashedPassword type".to_owned())
         }
     }
 
@@ -52,7 +52,7 @@ fn validate_password(s: &str) -> bool {
     s.len() >= 8
 }
 
-impl AsRef<str> for Password {
+impl AsRef<str> for HashedPassword {
     fn as_ref(&self) -> &str {
         &self.0.as_ref()
     }
@@ -80,7 +80,7 @@ pub async fn compute_password_hash(
 
 #[cfg(test)]
 mod tests {
-    use super::Password;
+    use super::HashedPassword;
     use argon2::{
         password_hash::{rand_core::OsRng, SaltString},
         Algorithm, Argon2, Params, PasswordHasher, Version,
@@ -94,12 +94,12 @@ mod tests {
     #[tokio::test]
     async fn empty_string_is_rejected() {
         let password = "".to_owned();
-        assert!(Password::parse(password).await.is_err());
+        assert!(HashedPassword::parse(password).await.is_err());
     }
     #[tokio::test]
     async fn string_less_than_8_characters_is_rejected() {
         let password = "1234567".to_owned();
-        assert!(Password::parse(password).await.is_err());
+        assert!(HashedPassword::parse(password).await.is_err());
     }
 
     #[test]
@@ -119,7 +119,7 @@ mod tests {
             .to_string();
 
         // Act
-        let hash_password = Password::parse_password_hash(hash_string.clone()).unwrap();
+        let hash_password = HashedPassword::parse_password_hash(hash_string.clone()).unwrap();
 
         // Assert
         assert_eq!(hash_password.as_ref(), hash_string.as_str());
@@ -143,7 +143,7 @@ mod tests {
             .to_string();
 
         // Act
-        let hash_password = Password::parse_password_hash(hash_string.clone()).unwrap();
+        let hash_password = HashedPassword::parse_password_hash(hash_string.clone()).unwrap();
 
         // Assert
         assert_eq!(hash_password.as_ref(), hash_string.as_str());
@@ -171,6 +171,6 @@ mod tests {
     #[tokio::test]
     #[quickcheck_macros::quickcheck]
     async fn valid_passwords_are_parsed_successfully(valid_password: ValidPasswordFixture) -> bool {
-        Password::parse(valid_password.0).await.is_ok()
+        HashedPassword::parse(valid_password.0).await.is_ok()
     }
 }

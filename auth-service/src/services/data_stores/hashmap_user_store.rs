@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use crate::domain::{Email, User, UserStore, UserStoreError};
+use std::collections::HashMap;
 
 #[derive(Default)]
 pub struct HashmapUserStore {
@@ -23,29 +23,25 @@ impl UserStore for HashmapUserStore {
         }
     }
 
-    async fn validate_user(
-        &self,
-        email: &Email,
-        raw_password: &str,
-    ) -> Result<(), UserStoreError> {
+    async fn validate_user(&self, email: &Email, raw_password: &str) -> Result<(), UserStoreError> {
         let user: &User = self.users.get(email).ok_or(UserStoreError::UserNotFound)?;
-        
-        user.password.verify_password_hash(raw_password.to_owned())
-            .await.map_err(|_| UserStoreError::InvalidCredentials)
+
+        user.password
+            .verify_password_hash(raw_password.to_owned())
+            .await
+            .map_err(|_| UserStoreError::InvalidCredentials)
     }
 }
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::Password;
-    
+    use crate::domain::HashedPassword;
 
     #[tokio::test]
     async fn test_add_user() {
         let mut user_store = HashmapUserStore::default();
-        let password = Password::parse("password".to_owned()).await.unwrap();
+        let password = HashedPassword::parse("password".to_owned()).await.unwrap();
         let user = User {
             email: Email::parse("test@example.com".to_owned()).unwrap(),
             password,
@@ -66,7 +62,7 @@ mod tests {
         let mut user_store = HashmapUserStore::default();
         let email = Email::parse("test@example.com".to_owned()).unwrap();
 
-        let password = Password::parse("password".to_owned()).await.unwrap();
+        let password = HashedPassword::parse("password".to_owned()).await.unwrap();
         let user = User {
             email: email.clone(),
             password,
@@ -90,30 +86,35 @@ mod tests {
     async fn test_validate_user() {
         let mut user_store = HashmapUserStore::default();
         let email = Email::parse("test@example.com".to_owned()).unwrap();
-        let password = Password::parse("password".to_owned()).await.unwrap();
-    
+        let password = HashedPassword::parse("password".to_owned()).await.unwrap();
+
         let user = User {
             email: email.clone(),
             password: password.clone(),
             requires_2fa: false,
         };
-    
+
         // Test validating a user that exists with correct password
         user_store.users.insert(email.clone(), user.clone());
-        let result = user_store.validate_user(&email, &"password".to_owned()).await;
+        let result = user_store
+            .validate_user(&email, &"password".to_owned())
+            .await;
         assert_eq!(result, Ok(()));
-    
+
         // Test validating a user that exists with incorrect password
-        let result = user_store.validate_user(&email, &"wrongpassword".to_owned()).await;
+        let result = user_store
+            .validate_user(&email, &"wrongpassword".to_owned())
+            .await;
         assert_eq!(result, Err(UserStoreError::InvalidCredentials));
-    
+
         // Test validating a user that doesn't exist
         let result = user_store
             .validate_user(
                 &Email::parse("nonexistent@example.com".to_string()).unwrap(),
-                &"password".to_owned()
-            ).await;
-    
+                &"password".to_owned(),
+            )
+            .await;
+
         assert_eq!(result, Err(UserStoreError::UserNotFound));
     }
 }

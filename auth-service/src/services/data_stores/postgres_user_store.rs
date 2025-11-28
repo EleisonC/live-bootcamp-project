@@ -1,6 +1,9 @@
 use sqlx::PgPool;
 
-use crate::domain::{data_stores::{UserStore, UserStoreError}, Email, Password, User};
+use crate::domain::{
+    data_stores::{UserStore, UserStoreError},
+    Email, HashedPassword, User,
+};
 
 pub struct PostgresUserStore {
     pool: PgPool,
@@ -46,21 +49,19 @@ impl UserStore for PostgresUserStore {
         .map(|row| {
             Ok(User {
                 email: Email::parse(row.email).map_err(|_| UserStoreError::UnexpectedError)?,
-                password: Password::parse_password_hash(row.password_hash).map_err(|_| UserStoreError::UnexpectedError)?,
+                password: HashedPassword::parse_password_hash(row.password_hash)
+                    .map_err(|_| UserStoreError::UnexpectedError)?,
                 requires_2fa: row.requires_2fa,
             })
         })
         .ok_or(UserStoreError::UserNotFound)?
     }
 
-    async fn validate_user(
-        &self,
-        email: &Email,
-        raw_password: &str,
-    ) -> Result<(), UserStoreError> {
+    async fn validate_user(&self, email: &Email, raw_password: &str) -> Result<(), UserStoreError> {
         let user: User = self.get_user(email).await?;
-        user.password.verify_password_hash(raw_password.to_owned())
-            .await.map_err(|_| UserStoreError::InvalidCredentials)
+        user.password
+            .verify_password_hash(raw_password.to_owned())
+            .await
+            .map_err(|_| UserStoreError::InvalidCredentials)
     }
 }
-
