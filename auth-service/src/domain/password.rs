@@ -32,9 +32,10 @@ impl HashedPassword {
 
     pub async fn verify_password_hash(
         &self,
-        password_candidate: String,
+        password_candidate: &str,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let password_hash = self.as_ref().to_owned();
+        let password_candidate = password_candidate.to_owned();
         let result = tokio::task::spawn_blocking(move || {
             let expected_password_hash: PasswordHash<'_> = PasswordHash::new(&password_hash)?;
 
@@ -150,7 +151,7 @@ mod tests {
         assert!(hash_password.as_ref().starts_with("$argon2id$v=19$"));
 
         let result = hash_password
-            .verify_password_hash(raw_password.to_owned())
+            .verify_password_hash(raw_password)
             .await
             .unwrap();
         assert_eq!(result, ())
