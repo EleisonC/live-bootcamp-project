@@ -11,7 +11,7 @@ pub struct HashedPassword(String);
 impl HashedPassword {
     pub async fn parse(s: String) -> Result<HashedPassword, String> {
         if validate_password(s.as_str()) {
-            if let Ok(password_hash) = compute_password_hash(s.to_owned()).await {
+            if let Ok(password_hash) = compute_password_hash(s.as_ref()).await {
                 Ok(Self(password_hash))
             } else {
                 Err("Password hash failed.".to_owned())
@@ -22,7 +22,7 @@ impl HashedPassword {
     }
 
     pub fn parse_password_hash(hash: String) -> Result<HashedPassword, String> {
-        // No validation - hashes are already validated by the hashing algorithm
+        // Parse the stored  password hash a string
         if let Ok(hashed_string) = PasswordHash::new(hash.as_ref()) {
             Ok(Self(hashed_string.to_string()))
         } else {
@@ -59,9 +59,8 @@ impl AsRef<str> for HashedPassword {
     }
 }
 
-pub async fn compute_password_hash(
-    password: String,
-) -> Result<String, Box<dyn Error + Send + Sync>> {
+pub async fn compute_password_hash(password: &str) -> Result<String, Box<dyn Error + Send + Sync>> {
+    let password = password.to_owned();
     let result = tokio::task::spawn_blocking(move || {
         let salt: SaltString = SaltString::generate(&mut OsRng);
         let password_hash = Argon2::new(
@@ -129,7 +128,6 @@ mod tests {
 
     #[tokio::test]
     async fn can_verify_password_hash() {
-        // Arrange - Create a valid Argon2 hash
         let raw_password = "TestPassword123";
         let salt = SaltString::generate(&mut OsRng);
         let argon2 = Argon2::new(
@@ -143,10 +141,8 @@ mod tests {
             .unwrap()
             .to_string();
 
-        // Act
         let hash_password = HashedPassword::parse_password_hash(hash_string.clone()).unwrap();
 
-        // Assert
         assert_eq!(hash_password.as_ref(), hash_string.as_str());
         assert!(hash_password.as_ref().starts_with("$argon2id$v=19$"));
 
