@@ -30,7 +30,7 @@ impl HashedPassword {
         }
     }
 
-    pub async fn verify_password_hash(
+    pub async fn verify_raw_password(
         &self,
         password_candidate: &str,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -147,7 +147,7 @@ mod tests {
         assert!(hash_password.as_ref().starts_with("$argon2id$v=19$"));
 
         let result = hash_password
-            .verify_password_hash(raw_password)
+            .verify_raw_password(raw_password)
             .await
             .unwrap();
         assert_eq!(result, ())

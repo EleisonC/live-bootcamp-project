@@ -27,7 +27,7 @@ impl UserStore for HashmapUserStore {
         let user: &User = self.users.get(email).ok_or(UserStoreError::UserNotFound)?;
 
         user.password
-            .verify_password_hash(raw_password)
+            .verify_raw_password(raw_password)
             .await
             .map_err(|_| UserStoreError::InvalidCredentials)
     }
