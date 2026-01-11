@@ -1,7 +1,6 @@
-use std::hash::Hash;
-
 use color_eyre::eyre::{eyre, Result};
 use secrecy::{ExposeSecret, SecretString};
+use std::hash::Hash;
 use validator::ValidateEmail;
 
 #[derive(Debug, Clone)]
