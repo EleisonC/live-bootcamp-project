@@ -1,3 +1,4 @@
+use crate::domain::UserStoreError;
 use argon2::{
     password_hash::{rand_core::OsRng, SaltString},
     Algorithm, Argon2, Params, PasswordHash, PasswordHasher, PasswordVerifier, Version,
@@ -18,11 +19,10 @@ impl HashedPassword {
     #[tracing::instrument(name = "HashedPassword Parse", skip_all)]
     pub async fn parse(s: SecretString) -> Result<HashedPassword> {
         if validate_password(&s) {
-            if let Ok(password_hash) = compute_password_hash(&s).await {
-                Ok(Self(password_hash))
-            } else {
-                Err(eyre!("Password hash failed"))
-            }
+            let result = compute_password_hash(&s)
+                .await
+                .map_err(|e| UserStoreError::UnexpectedError(e.into()))?;
+            Ok(Self(result))
         } else {
             Err(eyre!("Failed to parse string to a HashedPassword type"))
         }
