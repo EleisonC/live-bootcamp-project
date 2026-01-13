@@ -90,9 +90,9 @@ pub async fn compute_password_hash(password: &SecretString) -> Result<SecretStri
             Ok(SecretString::new(password_hash.into_boxed_str()))
         })
     })
-    .await;
+    .await?;
 
-    result?
+    result
 }
 
 #[cfg(test)]

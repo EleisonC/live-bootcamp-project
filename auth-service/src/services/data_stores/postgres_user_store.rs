@@ -1,4 +1,4 @@
-use color_eyre::eyre::Result;
+use color_eyre::eyre::{eyre, Result};
 use secrecy::{ExposeSecret, SecretString};
 use sqlx::PgPool;
 
@@ -53,11 +53,11 @@ impl UserStore for PostgresUserStore {
         .map(|row| {
             Ok(User {
                 email: Email::parse(SecretString::new(row.email.into_boxed_str()))
-                    .map_err(UserStoreError::UnexpectedError)?,
+                    .map_err(|e| UserStoreError::UnexpectedError(eyre!(e)))?,
                 password: HashedPassword::parse_password_hash(SecretString::new(
                     row.password_hash.into_boxed_str(),
                 ))
-                .map_err(UserStoreError::UnexpectedError)?,
+                .map_err(|e| UserStoreError::UnexpectedError(eyre!(e)))?,
                 requires_2fa: row.requires_2fa,
             })
         })
