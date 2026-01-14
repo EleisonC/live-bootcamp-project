@@ -17,17 +17,17 @@ pub async fn verify_2fa(
 ) -> (CookieJar, Result<impl IntoResponse, AuthAPIError>) {
     let email = match Email::parse(request.email.clone()) {
         Ok(email) => email,
-        Err(_) => return (jar, Err(AuthAPIError::InvalidCredentials)),
+        Err(e) => return (jar, Err(AuthAPIError::InvalidCredentials(e.into()))),
     };
 
     let login_attempt_id = match LoginAttemptId::parse(request.login_attempt_id.clone()) {
         Ok(login_attempt_id) => login_attempt_id,
-        Err(_) => return (jar, Err(AuthAPIError::InvalidCredentials)),
+        Err(e) => return (jar, Err(AuthAPIError::InvalidCredentials(e.into()))),
     };
 
     let two_fa_code = match TwoFACode::parse(request.two_fa_code) {
         Ok(two_fa_code) => two_fa_code,
-        Err(_) => return (jar, Err(AuthAPIError::InvalidCredentials)),
+        Err(e) => return (jar, Err(AuthAPIError::InvalidCredentials(e.into()))),
     };
 
     let mut two_fa_code_store = state.two_fa_code_store.write().await;

@@ -17,12 +17,12 @@ pub async fn login(
 ) -> (CookieJar, Result<impl IntoResponse, AuthAPIError>) {
     match HashedPassword::parse(request.password.clone()).await {
         Ok(password) => password,
-        Err(_) => return (jar, Err(AuthAPIError::InvalidCredentials)),
+        Err(e) => return (jar, Err(AuthAPIError::InvalidCredentials(e.into()))),
     };
 
     let email = match Email::parse(request.email) {
         Ok(email) => email,
-        Err(_) => return (jar, Err(AuthAPIError::InvalidCredentials)),
+        Err(e) => return (jar, Err(AuthAPIError::InvalidCredentials(e.into()))),
     };
 
     let user_store = &state.user_store.read().await;
