@@ -6,7 +6,7 @@ pub enum AuthAPIError {
     #[error("User already exists")]
     UserAlreadyExists,
     #[error("Invalid credentials")]
-    InvalidCredentials(#[source] Report),
+    InvalidCredentials,
     #[error("Incorrect credentials")]
     IncorrectCredentials,
     #[error("Missing token")]
