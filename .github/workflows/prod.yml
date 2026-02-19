@@ -13,26 +13,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # Service containers to run with the `test` container job
-    services:
-      # Label used to access the service container
-      postgres:
-        # Docker Hub image
-        image: postgres:15.2-alpine
-        # Environment variables scoped only for the `postgres` element
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          POSTGRES_DB: postgres
-        # When you map ports using the ports keyword, GitHub uses the --publish command to publish the container’s ports to the Docker host
-        # Opens tcp port 5432 on the host and service container
-        ports:
-          - 5432:5432
-      redis:
-        image: redis:7.0-alpine
-        ports:
-          - 6379:6379
-
     steps:
       # Checkout code from the repository
       - name: Checkout code
