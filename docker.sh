@@ -1,4 +1,5 @@
 #!/bin/bash
+# exit on any command failure
 set -e
 
 # Define the location of the .env file (change if needed)
