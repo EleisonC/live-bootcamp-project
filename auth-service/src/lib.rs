@@ -13,9 +13,13 @@ use redis::{Client, RedisResult};
 use routes::{login, logout, signup, verify_2fa, verify_token};
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
-use tower_http::{cors::CorsLayer, services::{ServeDir, ServeFile}, trace::TraceLayer};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use tokio::net::TcpListener;
+use tower_http::{
+    cors::CorsLayer,
+    services::{ServeDir, ServeFile},
+    trace::TraceLayer,
+};
 use utils::tracing::{make_span_with_request_id, on_request, on_response};
 
 pub mod app_state;
@@ -31,8 +35,8 @@ pub struct Application {
 
 impl Application {
     pub async fn build(app_state: AppState, address: &str) -> Result<Self, Box<dyn Error>> {
-        let asset_dir = ServeDir::new("assets")
-            .not_found_service(ServeFile::new("assets/index.html"));
+        let asset_dir =
+            ServeDir::new("assets").not_found_service(ServeFile::new("assets/index.html"));
         let allowed_origins = [
             "http://localhost:8000".parse()?,
             "http://[YOUR_DROPLET_IP]:8000".parse()?,
