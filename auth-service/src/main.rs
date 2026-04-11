@@ -11,9 +11,10 @@ use auth_service::{
     services::{
         data_stores::{PostgresUserStore, RedisBannedTokenStore, RedisTwoFACodeStore},
         postmark_email_client::PostmarkEmailClient,
+        resend_email_client::ResendEmailClient,
     },
     utils::{
-        constants::{prod, DATABASE_URL, POSTMARK_AUTH_TOKEN, REDIS_HOST_NAME},
+        constants::{prod, DATABASE_URL, POSTMARK_AUTH_TOKEN, REDIS_HOST_NAME, RESEND_API_KEY},
         tracing::init_tracing,
     },
     Application,
@@ -33,13 +34,14 @@ async fn main() {
     )));
     let two_fa_code_store = Arc::new(RwLock::new(RedisTwoFACodeStore::new(redis_connection)));
 
-    let email_client = Arc::new(configure_postmark_email_client());
+    let _email_client = Arc::new(configure_postmark_email_client());
+    let email_client_ii = Arc::new(configure_resend_email_client());
 
     let app_state = AppState::new(
         user_store,
         banned_token_store,
         two_fa_code_store,
-        email_client,
+        email_client_ii,
     );
 
     let app = Application::build(app_state, prod::APP_ADDRESS)
@@ -77,8 +79,30 @@ fn configure_postmark_email_client() -> PostmarkEmailClient {
 
     PostmarkEmailClient::new(
         prod::email_client::BASE_URL.to_owned(),
-        Email::parse(SecretString::new(prod::email_client::SENDER.to_owned().into_boxed_str())).unwrap(),
+        Email::parse(SecretString::new(
+            prod::email_client::SENDER.to_owned().into_boxed_str(),
+        ))
+        .unwrap(),
         POSTMARK_AUTH_TOKEN.to_owned(),
+        http_client,
+    )
+}
+
+fn configure_resend_email_client() -> ResendEmailClient {
+    let http_client = Client::builder()
+        .timeout(prod::email_client::TIMEOUT)
+        .build()
+        .expect("Failed to build HTTP client");
+
+    ResendEmailClient::new(
+        prod::email_client::BASE_URL_RESEND.to_owned(), // "https://api.resend.com"
+        Email::parse(SecretString::new(
+            prod::email_client::SENDER_RESEND
+                .to_owned()
+                .into_boxed_str(),
+        ))
+        .unwrap(),
+        RESEND_API_KEY.to_owned(),
         http_client,
     )
 }
