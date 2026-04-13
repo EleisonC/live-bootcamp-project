@@ -15,7 +15,6 @@ use auth_service::{
     get_postgres_pool, get_redis_client,
     services::{
         data_stores::{PostgresUserStore, RedisBannedTokenStore, RedisTwoFACodeStore},
-        postmark_email_client::PostmarkEmailClient,
         resend_email_client::ResendEmailClient,
     },
     utils::constants::{test, DATABASE_URL, DEFAULT_REDIS_HOSTNAME},
@@ -254,22 +253,6 @@ fn configure_redis() -> redis::Connection {
         .expect("Failed to get Redis client")
         .get_connection()
         .expect("Failed to get Redis connection")
-}
-
-fn configure_postmark_email_client(base_url: String) -> PostmarkEmailClient {
-    let postmark_auth_token = SecretString::new("auth_token".to_owned().into_boxed_str());
-
-    let sender = Email::parse(SecretString::new(
-        test::email_client::SENDER.to_owned().into_boxed_str(),
-    ))
-    .unwrap();
-
-    let http_client = Client::builder()
-        .timeout(test::email_client::TIMEOUT)
-        .build()
-        .expect("Failed to build HTTP client");
-
-    PostmarkEmailClient::new(base_url, sender, postmark_auth_token, http_client)
 }
 
 fn configure_resend_email_client(base_url: String) -> ResendEmailClient {

@@ -7,7 +7,6 @@ lazy_static! {
     pub static ref JWT_SECRET: SecretString = set_token();
     pub static ref DATABASE_URL: SecretString = set_db_url();
     pub static ref REDIS_HOST_NAME: String = set_redis_host();
-    pub static ref POSTMARK_AUTH_TOKEN: SecretString = set_postmark_auth_token();
     pub static ref RESEND_API_KEY: SecretString = set_resend_auth_token();
 }
 
@@ -43,20 +42,10 @@ fn set_resend_auth_token() -> SecretString {
     )
 }
 
-fn set_postmark_auth_token() -> SecretString {
-    dotenv().ok();
-    SecretString::new(
-        std_env::var(env::POSTMARK_AUTH_TOKEN_ENV_VAR)
-            .expect("POSTMARK_AUTH_TOKEN must be set.")
-            .into_boxed_str(),
-    )
-}
-
 pub mod env {
     pub const DATABASE_URL_ENV_VAR: &str = "DATABASE_URL";
     pub const JWT_SECRET_ENV_VAR: &str = "JWT_SECRET";
     pub const REDIS_HOST_NAME_ENV_VAR: &str = "REDIS_HOST_NAME";
-    pub const POSTMARK_AUTH_TOKEN_ENV_VAR: &str = "POSTMARK_AUTH_TOKEN";
     pub const RESEND_AUTH_TOKEN_ENV_VAR: &str = "RESEND_API_KEY";
 }
 
@@ -68,9 +57,7 @@ pub mod prod {
     pub mod email_client {
         use std::time::Duration;
 
-        pub const BASE_URL: &str = "https://api.postmarkapp.com/email";
         pub const BASE_URL_RESEND: &str = "https://api.resend.com";
-        pub const SENDER: &str = "bogdan@codeiron.io";
         pub const SENDER_RESEND: &str = "onboarding@resend.dev";
         pub const TIMEOUT: Duration = std::time::Duration::from_secs(10);
     }
