@@ -16,6 +16,7 @@ use auth_service::{
     services::{
         data_stores::{PostgresUserStore, RedisBannedTokenStore, RedisTwoFACodeStore},
         postmark_email_client::PostmarkEmailClient,
+        resend_email_client::ResendEmailClient,
     },
     utils::constants::{test, DATABASE_URL, DEFAULT_REDIS_HOSTNAME},
     Application,
@@ -49,7 +50,7 @@ impl TestApp {
 
         let email_server = MockServer::start().await;
         let base_url = email_server.uri();
-        let email_client = Arc::new(configure_postmark_email_client(base_url));
+        let email_client = Arc::new(configure_resend_email_client(base_url));
 
         let app_state = AppState::new(
             user_store,
@@ -177,11 +178,9 @@ async fn configure_postgresql(db_name: &str) -> PgPool {
 
     configure_database(&postgresql_conn_url, db_name).await;
 
-    let postgresql_conn_url_with_db = SecretString::new(format!(
-        "{}/{}",
-        postgresql_conn_url.expose_secret(),
-        db_name
-    ).into_boxed_str());
+    let postgresql_conn_url_with_db = SecretString::new(
+        format!("{}/{}", postgresql_conn_url.expose_secret(), db_name).into_boxed_str(),
+    );
 
     get_postgres_pool(&postgresql_conn_url_with_db)
         .await
@@ -260,7 +259,10 @@ fn configure_redis() -> redis::Connection {
 fn configure_postmark_email_client(base_url: String) -> PostmarkEmailClient {
     let postmark_auth_token = SecretString::new("auth_token".to_owned().into_boxed_str());
 
-    let sender = Email::parse(SecretString::new(test::email_client::SENDER.to_owned().into_boxed_str())).unwrap();
+    let sender = Email::parse(SecretString::new(
+        test::email_client::SENDER.to_owned().into_boxed_str(),
+    ))
+    .unwrap();
 
     let http_client = Client::builder()
         .timeout(test::email_client::TIMEOUT)
@@ -268,4 +270,20 @@ fn configure_postmark_email_client(base_url: String) -> PostmarkEmailClient {
         .expect("Failed to build HTTP client");
 
     PostmarkEmailClient::new(base_url, sender, postmark_auth_token, http_client)
+}
+
+fn configure_resend_email_client(base_url: String) -> ResendEmailClient {
+    let resend_auth_token = SecretString::new("resend_auth_token".to_owned().into_boxed_str());
+
+    let sender = Email::parse(SecretString::new(
+        test::email_client::SENDER.to_owned().into_boxed_str(),
+    ))
+    .unwrap();
+
+    let http_client = Client::builder()
+        .timeout(test::email_client::TIMEOUT)
+        .build()
+        .expect("Failed to build HTTP client");
+
+    ResendEmailClient::new(base_url, sender, resend_auth_token, http_client)
 }
