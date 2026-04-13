@@ -27,7 +27,7 @@ async fn should_return_200_if_correct_code() {
 
     assert_eq!(response.status().as_u16(), 201);
 
-    Mock::given(path("/email"))
+    Mock::given(path("/emails"))
         .and(method("POST"))
         .respond_with(ResponseTemplate::new(200))
         .expect(1)
@@ -147,7 +147,7 @@ async fn should_return_401_if_incorrect_credentials() {
 
     assert_eq!(response.status().as_u16(), 201);
 
-    Mock::given(path("/email"))
+    Mock::given(path("/emails"))
         .and(method("POST"))
         .respond_with(ResponseTemplate::new(200))
         .expect(1)
@@ -250,7 +250,7 @@ async fn should_return_401_if_old_code() {
 
     assert_eq!(response.status().as_u16(), 201);
 
-    Mock::given(path("/email"))
+    Mock::given(path("/emails"))
         .and(method("POST"))
         .respond_with(ResponseTemplate::new(200))
         .expect(2)
@@ -321,7 +321,7 @@ async fn should_return_401_if_same_code_twice() {
 
     assert_eq!(response.status().as_u16(), 201);
 
-    Mock::given(path("/email"))
+    Mock::given(path("/emails"))
         .and(method("POST"))
         .respond_with(ResponseTemplate::new(200))
         .expect(1)
