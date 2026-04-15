@@ -32,12 +32,19 @@ jobs:
         image: redis:7.0-alpine
         ports:
           - 6379:6379
-        command: redis-server --requirepass ${{ secrets.REDIS_PASSWORD }}
+        # command: redis-server --requirepass ${{ secrets.REDIS_PASSWORD }}
 
     steps:
       # Checkout code from the repository
     - name: Checkout code
       uses: actions/checkout@v2
+
+    # - name: Start Redis with password
+    #   run: |
+    #     docker run -d \
+    #       -p 6379:6379 \
+    #       redis:7.0-alpine \
+    #       redis-server --requirepass ${{ secrets.REDIS_PASSWORD }}
 
       # Cache dependencies to speed up build times
     - name: Cache dependencies
