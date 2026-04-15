@@ -111,8 +111,15 @@ pub async fn get_postgres_pool(url: &SecretString) -> Result<PgPool, sqlx::Error
         .await
 }
 
-pub fn get_redis_client(redis_hostname: String) -> RedisResult<Client> {
-    let redis_url = format!("redis://{}/", redis_hostname);
+pub fn get_redis_client(
+    redis_hostname: String,
+    redis_password: SecretString,
+) -> RedisResult<Client> {
+    let redis_url = format!(
+        "redis://:{}@{}/",
+        redis_password.expose_secret(),
+        redis_hostname
+    );
     redis::Client::open(redis_url)
 }
 

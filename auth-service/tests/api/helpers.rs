@@ -17,7 +17,7 @@ use auth_service::{
         data_stores::{PostgresUserStore, RedisBannedTokenStore, RedisTwoFACodeStore},
         resend_email_client::ResendEmailClient,
     },
-    utils::constants::{test, DATABASE_URL, DEFAULT_REDIS_HOSTNAME},
+    utils::constants::{test, DATABASE_URL, DEFAULT_REDIS_HOSTNAME, REDIS_PASSWORD},
     Application,
 };
 
@@ -248,8 +248,9 @@ async fn configure_database(db_conn_string: &SecretString, db_name: &str) {
 
 fn configure_redis() -> redis::Connection {
     let redis_hostname = DEFAULT_REDIS_HOSTNAME.to_owned();
+    let redis_pass = REDIS_PASSWORD.to_owned();
 
-    get_redis_client(redis_hostname)
+    get_redis_client(redis_hostname, redis_pass)
         .expect("Failed to get Redis client")
         .get_connection()
         .expect("Failed to get Redis connection")

@@ -13,7 +13,7 @@ use auth_service::{
         resend_email_client::ResendEmailClient,
     },
     utils::{
-        constants::{prod, DATABASE_URL, REDIS_HOST_NAME, RESEND_API_KEY},
+        constants::{prod, DATABASE_URL, REDIS_HOST_NAME, REDIS_PASSWORD, RESEND_API_KEY},
         tracing::init_tracing,
     },
     Application,
@@ -33,7 +33,7 @@ async fn main() {
     )));
     let two_fa_code_store = Arc::new(RwLock::new(RedisTwoFACodeStore::new(redis_connection)));
 
-    let email_client = Arc::new(configure_resend_email_client());
+    let email_client = Arc::new(configure_resend_email_client()); // Updated!
 
     let app_state = AppState::new(
         user_store,
@@ -63,12 +63,13 @@ async fn configure_postgresql() -> PgPool {
 }
 
 fn configure_redis() -> redis::Connection {
-    get_redis_client(REDIS_HOST_NAME.to_owned())
+    get_redis_client(REDIS_HOST_NAME.to_owned(), REDIS_PASSWORD.to_owned())
         .expect("Failed to get Redis client")
         .get_connection()
         .expect("Failed to get Redis connection")
 }
 
+// New!
 fn configure_resend_email_client() -> ResendEmailClient {
     let http_client = Client::builder()
         .timeout(prod::email_client::TIMEOUT)
