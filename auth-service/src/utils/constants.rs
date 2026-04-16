@@ -7,6 +7,7 @@ lazy_static! {
     pub static ref JWT_SECRET: SecretString = set_token();
     pub static ref DATABASE_URL: SecretString = set_db_url();
     pub static ref REDIS_HOST_NAME: String = set_redis_host();
+    pub static ref REDIS_PASSWORD: Option<SecretString> = set_redis_password();
     pub static ref RESEND_API_KEY: SecretString = set_resend_auth_token();
 }
 
@@ -33,6 +34,15 @@ fn set_redis_host() -> String {
     std_env::var(env::REDIS_HOST_NAME_ENV_VAR).unwrap_or(DEFAULT_REDIS_HOSTNAME.to_owned())
 }
 
+fn set_redis_password() -> Option<SecretString> {
+    dotenv().ok();
+
+    std_env::var("REDIS_PASSWORD")
+        .ok()
+        .filter(|password| !password.is_empty())
+        .map(|password| SecretString::new(password.into_boxed_str()))
+}
+
 fn set_resend_auth_token() -> SecretString {
     dotenv().ok();
     SecretString::new(
@@ -46,6 +56,7 @@ pub mod env {
     pub const DATABASE_URL_ENV_VAR: &str = "DATABASE_URL";
     pub const JWT_SECRET_ENV_VAR: &str = "JWT_SECRET";
     pub const REDIS_HOST_NAME_ENV_VAR: &str = "REDIS_HOST_NAME";
+    pub const REDIS_PASSWORD_ENV_VAR: &str = "REDIS_PASSWORD";
     pub const RESEND_AUTH_TOKEN_ENV_VAR: &str = "RESEND_API_KEY";
 }
 
