@@ -36,7 +36,11 @@ fn set_redis_host() -> String {
 
 fn set_redis_password() -> SecretString {
     dotenv().ok();
-    SecretString::new(std_env::var(env::REDIS_PASSWORD_ENV_VAR).into_boxed_str())
+    SecretString::new(
+        std_env::var(env::REDIS_PASSWORD_ENV_VAR)
+            .expect("REDIS_PASSWORD must be set.")
+            .into_boxed_str(),
+    )
 }
 
 fn set_resend_auth_token() -> SecretString {
