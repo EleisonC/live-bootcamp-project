@@ -115,11 +115,15 @@ pub fn get_redis_client(
     redis_hostname: String,
     redis_password: SecretString,
 ) -> RedisResult<Client> {
-    let redis_url = format!(
+    let mut redis_url = format!(
         "redis://:{}@{}/",
         redis_password.expose_secret(),
         redis_hostname
     );
+    if redis_password.expose_secret().is_empty() {
+        redis_url = format!("redis://{}/", redis_hostname);
+    }
+
     redis::Client::open(redis_url)
 }
 

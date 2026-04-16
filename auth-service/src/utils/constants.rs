@@ -38,7 +38,7 @@ fn set_redis_password() -> SecretString {
     dotenv().ok();
     SecretString::new(
         std_env::var(env::REDIS_PASSWORD_ENV_VAR)
-            .expect("REDIS_PASSWORD must be set.")
+            .unwrap_or(DEFAULT_REDIS_PASSWORD.to_owned())
             .into_boxed_str(),
     )
 }
@@ -62,6 +62,7 @@ pub mod env {
 
 pub const JWT_COOKIE_NAME: &str = "jwt";
 pub const DEFAULT_REDIS_HOSTNAME: &str = "127.0.0.1";
+pub const DEFAULT_REDIS_PASSWORD: &str = "";
 
 pub mod prod {
     pub const APP_ADDRESS: &str = "0.0.0.0:3000";
