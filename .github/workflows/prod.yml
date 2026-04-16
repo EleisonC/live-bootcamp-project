@@ -38,13 +38,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    # - name: Start Redis with password
-    #   run: |
-    #     docker run -d \
-    #       -p 6379:6379 \
-    #       redis:7.0-alpine \
-    #       redis-server --requirepass ${{ secrets.REDIS_PASSWORD }}
-
       # Cache dependencies to speed up build times
     - name: Cache dependencies
       uses: actions/cache@v3

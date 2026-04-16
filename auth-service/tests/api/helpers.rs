@@ -250,7 +250,7 @@ fn configure_redis() -> redis::Connection {
     let redis_hostname = DEFAULT_REDIS_HOSTNAME.to_owned();
     let redis_pass = REDIS_PASSWORD.to_owned();
 
-    get_redis_client(redis_hostname, redis_pass)
+    get_redis_client(&redis_hostname, redis_pass.as_ref())
         .expect("Failed to get Redis client")
         .get_connection()
         .expect("Failed to get Redis connection")

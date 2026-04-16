@@ -7,7 +7,7 @@ lazy_static! {
     pub static ref JWT_SECRET: SecretString = set_token();
     pub static ref DATABASE_URL: SecretString = set_db_url();
     pub static ref REDIS_HOST_NAME: String = set_redis_host();
-    pub static ref REDIS_PASSWORD: SecretString = set_redis_password();
+    pub static ref REDIS_PASSWORD: Option<SecretString> = set_redis_password();
     pub static ref RESEND_API_KEY: SecretString = set_resend_auth_token();
 }
 
@@ -34,13 +34,13 @@ fn set_redis_host() -> String {
     std_env::var(env::REDIS_HOST_NAME_ENV_VAR).unwrap_or(DEFAULT_REDIS_HOSTNAME.to_owned())
 }
 
-fn set_redis_password() -> SecretString {
+fn set_redis_password() -> Option<SecretString> {
     dotenv().ok();
-    SecretString::new(
-        std_env::var(env::REDIS_PASSWORD_ENV_VAR)
-            .unwrap_or(DEFAULT_REDIS_PASSWORD.to_owned())
-            .into_boxed_str(),
-    )
+
+    std_env::var("REDIS_PASSWORD")
+        .ok()
+        .filter(|password| !password.is_empty())
+        .map(|password| SecretString::new(password.into_boxed_str()))
 }
 
 fn set_resend_auth_token() -> SecretString {
@@ -62,7 +62,6 @@ pub mod env {
 
 pub const JWT_COOKIE_NAME: &str = "jwt";
 pub const DEFAULT_REDIS_HOSTNAME: &str = "127.0.0.1";
-pub const DEFAULT_REDIS_PASSWORD: &str = "";
 
 pub mod prod {
     pub const APP_ADDRESS: &str = "0.0.0.0:3000";
