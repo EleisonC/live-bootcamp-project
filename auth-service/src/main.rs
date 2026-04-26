@@ -13,7 +13,7 @@ use auth_service::{
         resend_email_client::ResendEmailClient,
     },
     utils::{
-        constants::{prod, DATABASE_URL, REDIS_HOST_NAME, RESEND_API_KEY},
+        constants::{prod, DATABASE_URL, REDIS_HOST_NAME, REDIS_PASSWORD, RESEND_API_KEY},
         tracing::init_tracing,
     },
     Application,
@@ -63,7 +63,7 @@ async fn configure_postgresql() -> PgPool {
 }
 
 fn configure_redis() -> redis::Connection {
-    get_redis_client(REDIS_HOST_NAME.to_owned())
+    get_redis_client(&REDIS_HOST_NAME, REDIS_PASSWORD.as_ref())
         .expect("Failed to get Redis client")
         .get_connection()
         .expect("Failed to get Redis connection")

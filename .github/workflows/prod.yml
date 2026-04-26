@@ -122,6 +122,7 @@ jobs:
           export JWT_SECRET=${{ secrets.JWT_SECRET }}
           export AUTH_SERVICE_IP=${{ vars.DROPLET_IP }}
           export POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          export REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
           export RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
           docker compose down
           docker compose pull
