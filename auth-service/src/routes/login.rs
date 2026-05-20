@@ -1,9 +1,4 @@
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::{IntoResponse, Response},
-    Json,
-};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
 
@@ -49,7 +44,7 @@ async fn handle_2fa(
     email: &Email,
     state: &AppState,
     jar: CookieJar,
-) -> Result<(CookieJar, Response), AuthAPIError> {
+) -> Result<(CookieJar, (StatusCode, Json<LoginResponse>)), AuthAPIError> {
     let login_attempt_id = LoginAttemptId::default();
     let two_fa_code = TwoFACode::default();
 
@@ -79,8 +74,7 @@ async fn handle_2fa(
             message: "2FA required".to_owned(),
             login_attempt_id: login_attempt_id.as_ref().to_owned(),
         })),
-    )
-        .into_response();
+    );
 
     Ok((jar, response))
 }
@@ -88,14 +82,14 @@ async fn handle_2fa(
 async fn handle_no_2fa(
     email: &Email,
     jar: CookieJar,
-) -> Result<(CookieJar, Response), AuthAPIError> {
+) -> Result<(CookieJar, (StatusCode, Json<LoginResponse>)), AuthAPIError> {
     let auth_cookie = match generate_auth_cookie(email) {
         Ok(cookie) => cookie,
         Err(_) => return Err(AuthAPIError::UnexpectedError),
     };
 
     let updated_jar = jar.add(auth_cookie);
-    let response = (StatusCode::OK, Json(LoginResponse::RegularAuth)).into_response();
+    let response = (StatusCode::OK, Json(LoginResponse::RegularAuth));
 
     Ok((updated_jar, response))
 }
